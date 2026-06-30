@@ -1,31 +1,44 @@
 #!/bin/bash
+
 # ==============================================================================
-# SCRIPT: setup_agent.sh
+# SCRIPT: install_agent_fluent_bit.sh
 # DESCRIPTION: Automates the installation of Fluent-bit on the host system.
 # ==============================================================================
 
-# Exit immediately if a command exits with a non-zero status
 set -e
 
-echo "🚀 [1/3] Adding Fluent-bit GPG key and repository..."
+echo "===================================================="
+echo ">>> Starting Fluent Bit installation process..."
+echo "===================================================="
 
-# Add official GPG key for package verification
-curl -fsSL https://packages.fluentbit.io/fluentbit.key | gpg --dearmor -o /usr/share/keyrings/fluentbit-keyring.gpg
+# 1. Update system packages and install required prerequisite tools
+echo ">>> [1/4] Updating system packages and installing curl, gnupg..."
+sudo apt-get update
+sudo apt-get install -y curl gnupg2 apt-transport-https ca-certificates
 
-# Detect OS codename (e.g., jammy, focal) and add to repository list
-OS_CODENAME=$(lsb_release -cs)
-echo "deb [signed-by=/usr/share/keyrings/fluentbit-keyring.gpg] https://packages.fluentbit.io/ubuntu/$OS_CODENAME $OS_CODENAME main" | tee /etc/apt/sources.list.d/fluentbit.list
+# 2. Add the official Fluent Bit GPG key for package verification
+echo ">>> [2/4] Adding official Fluent Bit GPG key..."
+sudo mkdir -p /usr/share/keyrings
+curl -fsSL https://packages.fluentbit.io/fluentbit.gpg | sudo gpg --dearmor -o /usr/share/keyrings/fluentbit-keyring.gpg
 
-echo "📦 [2/3] Updating package index and installing Fluent-bit..."
-apt-get update -y
-apt-get install -y fluent-bit
+# 3. Add the Fluent Bit repository to the APT sources list
+echo ">>> [3/4] Configuring APT Repository..."
+# Automatically detect the distribution codename (e.g., focal, jammy, noble...)
+CODENAME=$(lsb_release -cs)
+echo "deb [signed-by=/usr/share/keyrings/fluentbit-keyring.gpg] https://packages.fluentbit.io/ubuntu/$CODENAME $CODENAME main" | sudo tee /etc/apt/sources.list.d/fluent-bit.list
 
-echo "🔄 [3/3] Enabling and starting Fluent-bit service..."
-systemctl daemon-reload
-systemctl enable fluent-bit
-systemctl restart fluent-bit
+# 4. Update APT cache and install the fluent-bit package
+echo ">>> [4/4] Installing Fluent Bit package..."
+sudo apt-get update
+sudo apt-get install -y fluent-bit
 
-echo "========================================================================"
-echo "✅ INSTALLATION SUCCESSFUL!"
-echo "Fluent-bit service is now active and running."
-echo "========================================================================"
+# 5. Enable and start the background service via systemd
+echo ">>> Enabling systemd service..."
+sudo systemctl daemon-reload
+sudo systemctl enable fluent-bit
+sudo systemctl start fluent-bit
+
+echo "===================================================="
+echo ">>> Installation SUCCESSFUL! Check the service status with:"
+echo "    sudo systemctl status fluent-bit"
+echo "===================================================="
